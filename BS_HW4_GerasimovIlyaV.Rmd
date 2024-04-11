@@ -1,0 +1,590 @@
+---
+title: "BS_HW4_GerasimovIlyaV"
+author: "Gerasimov_Ilya_V"
+output: html_document
+date: "2024-04-04"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{=html}
+<style type="text/css">
+body{
+  font-family: Helvetica;
+  font-size: 12pt;
+}
+/* Headers */
+h1, h2{
+  font-size: 16pt;
+}
+</style>
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(car)
+
+```
+
+Выберем уровень значимости стандартным: 5%
+```{r}
+# Set the level of significance
+alpha <- 0.05
+
+# Print the level of significance
+print(paste("The level of significance α (alpha) is set to:", alpha))
+```
+
+
+```{r}
+# Setting the seed for reproducibility
+set.seed(42)
+
+# Generating blood pressure data for the standard treatment
+bp_standard <- rnorm(30, mean = 140, sd = 15)
+
+# Generating blood pressure data for the new treatment
+bp_new <- rnorm(30, mean = 130, sd = 15)
+
+##########################################
+# Visualizing the data
+##########################################
+# Overlaid histograms for comparison
+# Calculate bin width and breaks
+common_range <- range(c(bp_standard, bp_new))
+num_bins <- 10
+bin_width <- (common_range[2] - common_range[1]) / num_bins
+breaks <- seq(from = common_range[1], to = common_range[2] + bin_width, by = bin_width)
+
+# Histogram for the standard treatment
+hist(bp_standard, breaks = breaks, col = rgb(0, 0, 1, 0.5), main = "Standard treatment", xlab = "Blood pressure", ylab = "Frequency")
+
+# Histogram for the new treatment
+hist(bp_new, breaks = breaks, col = rgb(1, 0, 0, 0.5), main = "New treatment", xlab = "Blood pressure", ylab = "Frequency")
+
+# Overlaid histograms for comparison
+hist(bp_standard, breaks = breaks, col = rgb(0, 0, 1, 0.5), xlim = common_range, main = "Comparative blood pressure", xlab = "Blood pressure", ylim = c(0, max(table(cut(c(bp_standard, bp_new), breaks)))))
+hist(bp_new, breaks = breaks, col = rgb(1, 0, 0, 0.5), add = TRUE)
+
+# Adjusting the legend position to avoid overlapping
+legend("top", inset = c(-0.9, -0.1), legend = c("Standard treatment", "New treatment"), fill = c(rgb(0, 0, 1, 0.5), rgb(1, 0, 0, 0.5)), border = "white")
+
+##########################################
+
+# Boxplot to compare the blood pressure between treatments
+boxplot(bp_standard, bp_new, names = c("Standard treatment", "New treatment"), main = "Blood pressure comparison", ylab = "Blood pressure", col = c("blue", "red"))
+
+```
+
+Формулирование гипотез
+
+Нулевая гипотеза (H0): 
+Нулевая гипотеза утверждает, что новый препарат не является более эффективным, чем стандартная терапия. Это можно выразить в терминах среднего кровяного давления при лечении стандартной терапией против лечения новым препаратом.
+
+H0: Среднее кровяное давление после использования нового препарата равно или выше, чем после использования стандартного лечения (отсутствие пользы внедрения нового препарата): 
+
+$P_{new} \geq P_{standard}$
+
+Альтернативная гипотеза (H1): 
+Альтернативная гипотеза утверждает, что новый препарат более эффективен, чем стандартная терапия, в снижении кровяного давления.
+
+$P_{new} < P_{standard}$
+
+Гипотезы нацелены на односторонний тест, так как нас интересует вопрос о наличии или отсутствии превосходства в нового препарата по сравнению стандартной терапией, а не просто отличие.
+
+
+Выбор теста.
+
+Чтобы определить соответствующий статистический тест для проверки гипотез, необходимо сначала проверить, являются ли данные о кровяном давлении в группе стандартного и нового методов лечения нормального распределения. Сделаем это с помощью теста Шапиро-Уилка.
+```{r}
+
+#Shapiro-Wilk test for normality on blood pressure data from the standard treatment
+shapiro_standard <- shapiro.test(bp_standard)
+print(shapiro_standard)
+
+# Shapiro-Wilk test for normality on blood pressure data from the new treatment
+shapiro_new <- shapiro.test(bp_new)
+print(shapiro_new)
+```
+Значения р-value выше альфа уровня 0,05, что предполагает, что мы не отвергаем нулевую гипотезу нормальности.
+
+результаты для групп пациентов:
+
+    • стандартное лечение (bp_standard):
+        ◦ Shapiro-Wilk statistic: W=0.96209
+        ◦ p-value: p=0.35
+    • новое лечение (bp_new):
+        ◦ Shapiro-Wilk statistic: W=0.93428
+        ◦ p-value: p=0.06386
+
+Поскольку распределение в обеих группах нормальное, мы можем рассмотреть возможность использования параметрических тестов для дальнейшего анализа. 
+
+В этой ситуации, когда у нас есть парные зависимые выборки (одна и та же группа, протестированная до и после внедрения нового лекарства - со стандартной терапией и с новым методом лечения) с нормальным распределением, парный t-test будет подходящим выбором в качестве статистического теста. Этот тест сравнит средние различия в кровяном давлении до и после применения нового лечения в нашей выборке пациентов.
+
+
+```{r}
+# Performing a paired t-test
+t_test_result <- t.test(bp_new, bp_standard, paired = TRUE, alternative = "less")
+
+print(t_test_result)
+
+```
+
+Интерпретация результатов парного Т-теста в соответствии с формулировками тестируемых гипотез:
+
+    - t-value: Значение t равно -2,6182. Отрицательный признак указывает на то, что среднее значение нового лечения (bp_new) ниже среднего стандартного лечения (bp_standard), что согласуется с идеей, что новый препарат снижает кровяное давление.
+
+    - Степени свободы (df): степеней свободы 29, что соответствует размеру выборки 30 (30 - 1 = 29).
+
+    - p-value: Значение p равно 0,006953, что ниже альфа-уровня 0,05. Это означает, что тест обнаружил статистически значимую разницу в средствах двух методов лечения, и мы можем отклонить нулевую гипотезу в пользу альтернативной гипотезы: новое лечение более эффективно в снижении кровяного давления.
+
+    - Доверительный интервал: 95% доверительный интервал для средней разницы - от отрицательной бесконечности до -4.513402. Тот факт, что этот интервал не включает 0, говорит о том, что истинная средняя разница, вероятно, будет меньше -4.513402, что дополнительно подтверждает большую эффективность нового лечения.
+
+    - Средняя разница: примерная оценка средней разницы составляет -12,85743, что указывает на то, что в среднем новое лечение снижает кровяное давление на это число единиц по сравнению со стандартным лечением.
+
+Итоговая интерпретация:
+С помощью этих результатов мы можем уверенно утверждать, что новое лечение статистически значимо более эффективно для снижения кровяного давления, чем стандартное лечение в этой выборке пациентов. 
+
+    Анализ подтверждает альтернативную гипотезу, которая является желаемым результатом в контексте демонстрации эффективности нового лекарства.
+
+
+Задача 2.
+
+
+```{r}
+
+# Define sample sizes and probabilities
+sample_size1 <- 100
+sample_size2 <- 30
+p_smoker <- 0.8
+p_nonsmoker <- 0.2
+
+# Generate smoking status (1 for smokers, 0 for non-smokers)
+smoking_status1 <- rep(c(1, 0), each = sample_size1 / 2)
+smoking_status2 <- rep(c(1, 0), each = sample_size2 / 2)
+
+# Generate lung cancer incidences based on smoking status
+lung_cancer1 <- ifelse(smoking_status1 == 1, rbinom(length(smoking_status1[smoking_status1 == 1]), 1, p_smoker), 
+                                rbinom(length(smoking_status1[smoking_status1 == 0]), 1, p_nonsmoker))
+lung_cancer2 <- ifelse(smoking_status2 == 1, rbinom(length(smoking_status2[smoking_status2 == 1]), 1, p_smoker), 
+                                rbinom(length(smoking_status2[smoking_status2 == 0]), 1, p_nonsmoker))
+
+# Combine the data into data frames
+data1 <- data.frame(smoking_status = smoking_status1, lung_cancer = lung_cancer1)
+data2 <- data.frame(smoking_status = smoking_status2, lung_cancer = lung_cancer2)
+
+# Aggregate the number of lung cancer cases for smokers and non-smokers in both samples
+aggregate_data1 <- aggregate(lung_cancer ~ smoking_status, data1, sum)
+aggregate_data2 <- aggregate(lung_cancer ~ smoking_status, data2, sum)
+
+
+
+# Print out the data for verification
+print(head(aggregate_data1))
+print(head(aggregate_data2))
+
+
+# Bar plot for sample 1
+ggplot(aggregate_data1, aes(x = as.factor(smoking_status), y = lung_cancer, fill = as.factor(smoking_status))) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_fill_manual(values = c("blue", "orange"), labels = c("Non-smokers", "Smokers")) +
+  labs(title = "Lung cancer incidence in sample 1", x = "Group", y = "Number of lung cancer cases") +
+  theme_minimal()
+
+
+# Bar plot for sample 2
+ggplot(aggregate_data2, aes(x = as.factor(smoking_status), y = lung_cancer, fill = as.factor(smoking_status))) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_fill_manual(values = c("blue", "orange"), labels = c("Non-smokers", "Smokers")) +
+  labs(title = "Lung cancer incidence in sample 2", x = "Group", y = "Number of lung cancer cases") +
+  theme_minimal()
+```
+
+```{r}
+# Boxplots
+boxplot(data1$lung_cancer ~ data1$smoking_status, 
+        main = "Lung cancer incidence by smoking status in sample 1", 
+        xlab = "Smoking Status (0=non-smokers, 1=smokers)", 
+        ylab = "Lung cancer incidence",
+        col = c("blue", "red"))
+
+boxplot(data2$lung_cancer ~ data2$smoking_status, 
+        main = "Lung cancer incidence by smoking status in sample 2", 
+        xlab = "Smoking Status (0=non-smokers, 1=smokers)", 
+        ylab = "Lung cancer incidence",
+        col = c("blue", "red"))
+
+# Histograms
+hist(data1$lung_cancer[data1$smoking_status == 0], 
+     main = "Lung cancer incidence among non-smokers in sample 1", 
+     xlab = "Lung Cancer Incidence", 
+     col = "blue")
+
+hist(data1$lung_cancer[data1$smoking_status == 1], 
+     main = "Lung cancer incidence among smokers in sample 1", 
+     xlab = "Lung cancer incidence", 
+     col = "red")
+
+# Combined histograms for Sample 1
+hist(data1$lung_cancer[data1$smoking_status == 0], 
+     col = rgb(0, 0, 1, 0.5), 
+     xlim = c(0, max(c(data1$lung_cancer, data2$lung_cancer))), 
+     main = "Lung cancer incidence in sample 1", 
+     xlab = "Lung cancer incidence", 
+     ylim = c(0, max(c(table(data1$lung_cancer), table(data2$lung_cancer)))))
+hist(data1$lung_cancer[data1$smoking_status == 1], 
+     col = rgb(1, 0, 0, 0.5), 
+     add = TRUE)
+
+legend("topright", 
+       legend = c("Non-smokers", "Smokers"), 
+       fill = c(rgb(0, 0, 1, 0.5), rgb(1, 0, 0, 0.5)))
+```
+
+
+Формулировка гипотез
+
+1.  Нулевая гипотеза (Н0): Нет связи между курением и раком легких. Доля случаев заболевания раком легких среди курильщиков и некурящих одинакова. 
+    $P_{smokers} = P_{non-smokers}$, где $P$ - доля лиц с раком легких.
+
+2.  Альтернативная гипотеза (Н1): Вероятность рака легких у курильщиков выше, чем вероятность рака легких у некурящих. 
+    $ P_{smokers} > P_{non-smokers} $
+
+
+Выбор теста.
+
+Уместно использовать точный тест Фишера, потому что он особенно подходит для анализа данных на случай непредвиденных обстоятельств, особенно когда речь идет о небольших размерах выборки или когда ожидаемая частота в любой ячейке таблицы на случай непредвиденных обстоятельств может оказаться очень низкой (менее 5).
+
+Тест Хи-квадрат также является хорошим выбором, когда большие размеры выборки и когда ожидаемые частоты в каждой ячейке данных по крайней мере 5. Однако, когда эти ожидаемые частоты ниже (есть ячейка численностью 2), тест Хи-квадрат может быть ненадежным. 
+
+```{r}
+# Create contingency tables for Fisher's exact test for both samples
+# Sample 1
+smokers_cancer1 <- aggregate_data1$lung_cancer[aggregate_data1$smoking_status == 1]
+non_smokers_cancer1 <- aggregate_data1$lung_cancer[aggregate_data1$smoking_status == 0]
+total_smokers1 <- sample_size1 / 2
+total_non_smokers1 <- sample_size1 / 2
+
+# The contingency table for sample 1
+contingency_table1 <- matrix(c(smokers_cancer1, total_smokers1 - smokers_cancer1,
+                               non_smokers_cancer1, total_non_smokers1 - non_smokers_cancer1),
+                             nrow = 2,
+                             byrow = TRUE,
+                             dimnames = list(c("Smokers", "Non-smokers"), c("Cancer", "No cancer")))
+
+# Sample 2
+smokers_cancer2 <- aggregate_data2$lung_cancer[aggregate_data2$smoking_status == 1]
+non_smokers_cancer2 <- aggregate_data2$lung_cancer[aggregate_data2$smoking_status == 0]
+total_smokers2 <- sample_size2 / 2
+total_non_smokers2 <- sample_size2 / 2
+
+# The contingency table for sample 2
+contingency_table2 <- matrix(c(smokers_cancer2, total_smokers2 - smokers_cancer2,
+                               non_smokers_cancer2, total_non_smokers2 - non_smokers_cancer2),
+                             nrow = 2,
+                             byrow = TRUE,
+                             dimnames = list(c("Smokers", "Non-smokers"), c("Cancer", "No cancer")))
+
+# Perform Fisher's exact test for both samples
+fisher_test1 <- fisher.test(contingency_table1)
+fisher_test2 <- fisher.test(contingency_table2)
+
+# Print the results
+cat("Fisher's exact test for sample 1:\n")
+print(fisher_test1)
+cat("\nFisher's exact test for sample 2:\n")
+print(fisher_test2)
+```
+
+  Результаты точного теста Фишера для обоих образцов очень убедительеы, со значениями р-value много меньшими обычно используемого уровня 0,05. Эти результаты позволяют нам интерпретировать выводы в соответствии с формулировкой гипотез следующим образом:
+
+    - Нулевая гипотеза (H0): Вероятность развития рака легких одинакова для курильщиков и некурящих: 
+$ P_{smokers} = P_{non-smokers} $
+    Альтернативная гипотеза (Н1): Вероятность развития рака легких у курильщиков выше, чем у некурящих 
+$ P_{smokers}  > P_{non-smokers} $
+
+    - Интерпретация для выборки 1 (численностью 100):
+    Значение р-value для этой выборки составляет приблизительно 2,029e-13. Этот результат весьма значителен, он указывает на то статистическая связь между курением и заболеваемостью раком легких очень значима (убедительно отклоняем нулевую гипотезу об отсутствии такой связи). Отношение шансов составляет около 35,5283, что говорит о том, что шансы  иметь рак легких для курильщика более чем в 35 раз превышают шансы некурящих в этой выборке.
+
+    - Интерпретация для выборки 2 (численностью 30):
+    Значение р-value для выборки 2 составляет приблизительно 2,187e-05. Этот результат также весьма значителен, и он вновь указывает на наличие статистически значимой связи между курением и заболеваемостью раком легких  (мы также убедительно отклоняем нулевую гипотезу об отсутствии такой связи).  Шансы  иметь рак легких для курильщика значимо превышают такие шансы для некурящих в этой выборке (отношение шансов почти 68).
+
+    - Общая интерпретация:
+    В обоих случаях нулевая гипотеза отклоняется в пользу альтернативной гипотезы. Это означает, что имеющиеся данные убедительно свидетельствуют о том, что курение серьезно повышает риск развития рака легких.
+
+    - Доверительные интервалы:
+    95% доверительные интервалы для отношения шансов не включают 1 для обоих выборок, что еще больше ходатайствует в пользу отклонения нулевой гипотезы. Широкий диапазон интервала в выборке 2 связан с меньшим размером выборки и обусловленную этим неопределенность, но все же указывает также на существенное увеличение шансов.
+
+  Заключение:
+Точные результаты теста Фишера убедительно подтверждают утверждение о том, что курение связано с более высоким риском рака легких в обоих образцах. Эти выводы согласуются с обширными исследованиями, которые определяют курение как существенный фактор риска развития рака легких.
+
+Задача 3.
+
+
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+
+# Generate normally distributed data for two groups
+
+# NewMethod - Patients treated with the new method
+NewMethod <- pmin(pmax(round(rnorm(30, mean = 5, sd = 2)), 0), 10)
+#
+# Dietary - Patients treated with dietary therapy
+Dietary <- pmin(pmax(round(rnorm(30, mean = 7, sd = 2)), 0), 10)
+
+# Combine data into a data frame for visualization
+data <- data.frame(
+  Score = c(NewMethod, Dietary),
+  Group = factor(c(rep("NewMethod", 30), rep("Dietary", 30)))
+)
+
+# View outcome print the data
+
+print(data)
+
+# Visualize the distributions using histograms and boxplotes
+
+# Visualize the distributions using histograms
+ggplot(data, aes(x = Score, fill = Group)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins = 10, color = "black") +
+  facet_wrap(~Group) +
+  labs(title = "Histogram of pain scores", x = "Pain score", y = "Count")
+
+# Add boxplot visualization
+ggplot(data, aes(x = Group, y = Score, fill = Group)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of pain scores by treatment group", x = "Treatment group", y = "Pain score") +
+  theme_minimal()
+```
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Function to generate and adjust data
+generate_adjusted_data <- function(mean, sd, n) {
+  data <- rnorm(n, mean, sd)
+  data <- round(data)  # Make the data discrete
+  data <- ifelse(data < 0, 0, data)  # Floor at 0
+  data <- ifelse(data > 10, 10, data)  # Cap at 10
+  return(data)
+}
+
+# Step 1: Generate and adjust data for two groups
+# NewMethod - Patients treated with the new method
+NewMethod <- generate_adjusted_data(5, 2, 30)
+# Dietary - Patients treated with dietary therapy
+Dietary <- generate_adjusted_data(7, 2, 30)
+
+# Combine data into a data frame for visualization
+data <- data.frame(
+  Score = c(NewMethod, Dietary),
+  Group = factor(c(rep("NewMethod", 30), rep("Dietary", 30)))
+)
+
+# Visualize the adjusted distributions using histograms and boxplots
+ggplot(data, aes(x = Score, fill = Group)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins = 11, color = "black") +
+  facet_wrap(~Group) +
+  labs(title = "Histogram of adjusted pain scores", x = "Pain score", y = "Count")
+
+ggplot(data, aes(x = Group, y = Score, fill = Group)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of adjusted pain scores by treatment group", x = "Treatment group", y = "Pain score") +
+  theme_minimal()
+```
+
+
+Формулировка нелевой и альтернативной гипотез
+
+  ◦ Нулевая гипотеза (H0): Новый метод лечения такой же или хуже диетической терапии. В статистическом плане это может быть выражено как отсутствие различий в среднем уровне болевых симптомов между двумя группами или их больший уровень по шкале по сравнению с диетотерапией.
+  ◦ Альтернативная гипотеза (Н1): Новый метод лечения значительно лучше диетотерапии. В среднем уровне болевых симптомов у них значимо меньше по сравнению с теми, которые лечатся диетической терапией.
+
+```{r}
+
+# Checking the distribution of the data using Shapiro-Wilk test
+
+shapiro_test_NewMethod <- shapiro.test(NewMethod)
+shapiro_test_Dietary <- shapiro.test(Dietary)
+
+# Print Shapiro-Wilk test results
+print(shapiro_test_NewMethod)
+print(shapiro_test_Dietary)
+
+# For QQ plots in R, we can use the qqnorm and qqline functions
+
+# QQ plot for group 1
+qqnorm(NewMethod, main = "QQ-plot - new method")
+qqline(NewMethod, col = "red")
+
+# QQ plot for group 2
+qqnorm(Dietary, main = "QQ-plot - dietary therapy")
+qqline(Dietary, col = "blue")
+```
+
+Новйый метод лечения:
+
+статистика: 0.95325
+p-value = 0.2064
+
+Диетическая терапия:
+
+статистика: 0.92084
+p-value = 0.0282
+
+Для группы с новым методом лечения значение p-value выше уровня 0,05 -  данные нормального распределения в этой группе.
+
+Для группы с лечением диетотерапией значение p-value ниже 0,05- распределение в этой группе не является нормальным.
+
+    Поскольку одна из групп не прошла тест на нормальность, разумно использовать непараметрический тест для сравнения двух групп. Поэтому, несмотря на нормальное распределение группы NewMethod, тест Манна - Уитни является уместным для сравнения средних или медиан в двух группах, чтобы сохранить последовательность в анализе и избежать допущений нормальности.
+
+
+```{r}
+# Depending on the Shapiro-Wilk test, perform the appropriate test
+# If both p-values > 0.05, perform a two-sample t-test; otherwise, use Mann-Whitney U test
+if (shapiro_test_NewMethod$p.value > 0.05 && shapiro_test_Dietary$p.value > 0.05) {
+  test_result <- t.test(NewMethod, Dietary, var.equal = TRUE, alternative = "less")
+} else {
+  test_result <- wilcox.test(NewMethod, Dietary, alternative = "less")
+}
+
+# Print the test result
+print(test_result)
+```
+Результаты теста из двух образцов дают несколько ключевых сведений о разнице в болевых показателях между двумя группами: пациенты, получавшие лечение с помощью нового метода (NewMethod) и пациенты, получавшие лечение с помощью диетотерапии.
+
+Интерпретация полученных результатов:
+
+    - p-value: значение p-value = 0.006776, что меньше альфа-уровня 0,05. Это указывает на то, что наблюдаемая разница в средствах между двумя группами является статистически значимой. Другими словами, вероятность наблюдения такой разницы (или более экстремальной) случайно, если нулевая гипотеза верна, очень мала.
+    
+    Альтернативная гипотеза: Формулировка гипотезы и статтест были односторонними ("истинное различие средних значений меньше 0"), гипотеза была конкретно направлена на выяснение того, был ли средний балл по шкале боли в группе NewMethod меньше, чем в группе с лечением диетотерапией. Статистически значимый результат подтверждает эту одностороннюю альтернативную гипотезу.
+
+
+Задача 4.
+```{r}
+
+tumor <- tibble(
+  therapy = c(rep("0", 10), rep("A", 10), rep("B", 10)),
+  value = c(rep(3213, 10), rep(2687, 10), rep(2423, 10))
+) %>%
+  mutate(therapy = factor(therapy, levels = c("0", "A", "B")))
+
+# Adding normally distributed noise to the tumor sizes
+tumor$value <- tumor$value + rnorm(30, 0, 760)
+
+tumor
+```
+
+```{r}
+
+# Boxplot
+ggplot(tumor, aes(x=therapy, y=value, fill=therapy)) +
+  geom_boxplot() +
+  labs(title="Boxplot of tumor sizes by therapy group",
+       x="",
+       y="Tumor size") +
+  theme_minimal() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+# Histogram
+ggplot(tumor, aes(x=value, fill=therapy)) +
+  geom_histogram(bins=10, position="dodge") +
+  facet_wrap(~ therapy, scales = 'free_y') +
+  labs(title="Histogram of tumor sizes by therapy group",
+       x="Tumor size",
+       y="Count") +
+  theme_minimal()
+
+```
+
+
+```{r}
+# Shapiro-Wilk test for normality for each group
+shapiro.test(tumor$value[tumor$therapy == "0"])
+shapiro.test(tumor$value[tumor$therapy == "A"])
+shapiro.test(tumor$value[tumor$therapy == "B"])
+
+# Levene's test for homogeneity of variances
+
+leveneTest(value ~ therapy, data = tumor)
+```
+Тесты нормальности Шапиро-Уилка для каждой группы показывают p-значения больше 0,05, что указывает на отсутствие отклонения от нормальности. 
+А именно, для группы терапии "0" (p-value = 0.2723), группы терапии "A" (p-value = 0.9908) и группы терапии "B" (p-value = 0.9702) нулевая гипотеза о нормальности распределения не отвергается.
+
+Тест Левена на однородность дисперсий даёт значение p-value 0.3946, которое превышает 0,05, что указывает на отсутствие существенной разницы в дисперсиях между группами. Это подтверждает предположение об однородности дисперсий между группами.
+
+Учитывая эти результаты, оба предположения, необходимые для ANOVA (нормальность и однородность дисперсий), выполнены. Таким образом, можно провести тест ANOVA для определения наличия или отсутствия статистически значимых различий в размерах опухоли между различными группами терапии.
+
+```{r}
+# Perform one-way ANOVA
+anova_result <- aov(value ~ therapy, data = tumor)
+summary(anova_result)
+```
+Результаты теста ANOVA для размеров опухоли.
+p-value = 0.0121, что меньше 0,05. Это означает, что есть статистически значимые доказательства того, что по крайней мере одна группа терапии имеет разный средний размер опухоли.
+
+Поскольку ANOVA обнаруживает наличие значимого различия, то правомерно и уместно перейти к  проведению попарных сравнений для определения, какие конкретные группы отличаются друг от друга. Тест Tukey Honest Significant Difference (TukeyHSD) является общим выбором для этой цели, так как он контролирует скорость ошибок I типа при множественных сравнениях.
+
+```{r}
+# Perform Tukey's HSD test for pairwise comparisons
+tukey_result <- TukeyHSD(anova_result)
+print(tukey_result)
+```
+
+Результаты теста TukeyHSD обеспечивают парное сравнение среднего размера опухоли каждой группы. Вот как интерпретировать результаты:
+
+- плацебо и препарат А
+
+Разница средних: -796.3709
+95% доверительный интервал: [-1743.442  150.7005]
+p-value: 0.1119338
+Доверительный интервал включает ноль, а значение p-value  больше 0,05, что указывает на отсутствие статистически значимой разницы в средних размерах опухоли между группой плацебо и группой, получавшей препарат А.
+
+- плацебо и препарат B:
+
+Разница средних: -1214.3273
+95% доверительный интервал: [-2161.399 -267.2559]
+p-value: 0.0099816
+Доверительный интервал не включает нуль, а значение p-value  меньше 0,05, что указывает на статистически значимую разницу в средних размерах опухоли между группой плацебо и группой, получавшей препарат В.
+
+- препарат А и препарат В:
+
+Разница средних: -417.9564
+95% доверительный интервал: [-1365.028  529.1149]
+p-value: 0.5257861
+Доверительный интервал включает ноль, а p-valuе больше 0,05, что указывает на отсутствие статистически значимой разницы в средних размерах опухоли между группой, получавшей препарат А и группой, получавшей препарат В.
+
+Таким образом, единственное существенное различие в средних размерах опухоли наблюдается между группой плацебо и группой, получавшей препарат В, что указывает на то, что препарат В может быть эффективным в противоопухолевой терапии по сравнению с отсутствием лечения. Однако, нет существенной разницы между группой плацебо и препаратом А, и между препаратом А и препаратом В с точки зрения среднего размера опухоли.
+
+
+Комментарии и рефлексия.
+
+Во всех заданиях необходимо ответственно подходить к формулировке гипотез: хотим ли мы увидеть наличие/отсутствие различия в эффективности лечения/связи между факторами и наличием заболевания, или же хотим именно решить вопрос о лучшей эффективности или отсутствия таковой (взаимосвязи событий с определенным фактором, предполагаемо, их обуславливающем или отсутствии значимо такой связи).
+Это определяется интересами и целями исследователя/иных заинтересованных в получении результатов исследования лиц, объектом и предметом проводимого исследования, наличием финансовых, материальных и временных ресурсов, которыми располагает исследователь, требуются хорошие знания доменной области и предмета своего исследования.
+
+Во всех задачах присутствует недостаток данных, остаются неясными полностью все условия проведения исследования, полнота, объективность и всесторонность исследования.
+
+По заданию 1. 
+Отсутствуют достаточные данные о продолжительности исследований.
+
+По заданию 2.
+Нет достаточных данных о равенстве условий проведенных исследований: рак легких зависит не только от курения, но и от множества других факторов - генетическая предрасположенность, вредные условия (химический состав воздуха), перенесенные заболевания, наличие других основных заболеваний, потенциально связанных с развитием онкологических заболевания легких. Если специалист исследует влияние именно фактора курения, необходимо учесть влияние остальных указанных факторов, исключить их/свести к минимуму, либо скорректировать. Ничего из этого не производится в обсуждаемом исследовании.
+
+По заданию 3.
+Усовие задания требует 
+- гарантию осутствия любых допущений при проведении анализа
+- одинаковости статистики
+Задание предлагает проведение статистического анализа с признаками классического статистического анализа.
+Для получения корректных результатов исследования данные, на которых проводится статистический анализ, должны быть валидными.
+Однако в данной задаче приходится работать с данными, которые уже будут являться искажением реальной величины. Данные представляют собой показания по валидированной дискретной шкале боли. То есть, могут принимать только целые неотрицательные значения: 0, 1, 2,... Но показания, отвечающие данным из области естественных наук (медицина и ее разделы: патология, и т.д) не обязаны быть целочисленными, они носят непрерывный, а не дискретный характер, то есть реальный уровень боли пациента может быть равным 1.23, 4.333..., $\sqrt(10)$ и т.д. Оценивание по шкале боли происходит с округлением. И использование таких данных для оценки эффективности препарата представляется сомнительной идеей. Например, рассмотрим даже в рамках одного конкретного пациента: при лечении диетотерапией его реальный уровень боли может быть равным, например, 5.4, и при лечении новым препаратом 4.6. Разница равна 0.8, то есть почти целый балл, что уже может говорить о некотором преимуществе в эффективности! Однако, по шкале боли, и то и другое равно 5, и различия нет!
+Кроме того, отсутствуют данные о начале и продолжительности лечения, нет гарантии равенства этих условий для всех пациентов, в то время как это может быть критично для корректности сравнения в целях оценки эффективности (существуют: период начала действия лечения, фармакокинетические и фармакодинамические показатели и многое другое).
+
+Задача 4.
+Отсутствуют достаточные данные, которые позволили бы судить о равенстве в оценки эффективности препаратов и гарантировать таковое: стадия и вид опухоли на момент начала лечения, продолжительность лечения, восприимчивость к препарату у каждой особи. Например, меньший эффект в лечении может быть связан с худшей восприимчивостью организма к препарату у данной особи, принимающей первый препарат, по сравнению с другой особью, принимающей второй препарат, с чем и связана меньшая эффективность первого препарата по сравнению со вторым в сравнении на данной паре особей, а не разницей в эффективности самих препаратов; в данном исследовании нет информации о наличии или отсутствии влияния данного фактора. 
